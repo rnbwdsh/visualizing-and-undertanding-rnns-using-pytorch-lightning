@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader, Dataset
 
 
 class ContStrDataSet(Dataset):
-    def __init__(self, data, offset, end, sample_len, disjoint_samples=False):
+    def __init__(self, data, offset, end, sample_len, disjoint_samples):
         super(ContStrDataSet, self).__init__()
         self.data = data[offset:end]
         self.sample_len = sample_len
@@ -20,15 +20,12 @@ class ContStrDataSet(Dataset):
         return self.data[start: start + self.sample_len]
 
 
-def load_data(fn="data/warandpeace.txt", splits=(0, 80, 90, 100), batch_size=100, seq_len=100, device="cuda"):
-    data = open(fn).read()
+def load(file_name, device, splits=(0, 80, 90, 100), batch_size=100, seq_len=100, unique=True):
+    data = open(file_name).read()
     assert set(data).issubset(printable), "Datset contains non-strings.printable-chars"
     printable_id = {s: i for i, s in enumerate(sorted(set(data)))}
     t = torch.tensor([printable_id[c] for c in data], dtype=torch.long, device=device)
     splits = [len(data) * i // 100 for i in splits]
-    loaders = []
-    for i in range(3):
-        ds = ContStrDataSet(t, splits[i], splits[i + 1], seq_len)
-        shuffle = not bool(splits[i])  # 1 for 0, 0 for all others
-        loaders.append(DataLoader(ds, batch_size=batch_size, shuffle=shuffle))
+    loaders = [DataLoader(ContStrDataSet(t, splits[i], splits[i + 1], seq_len, disjoint_samples=unique),
+                          batch_size=batch_size, shuffle=not bool(splits[i])) for i in range(3)]
     return loaders, len(printable_id)
