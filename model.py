@@ -1,6 +1,7 @@
+import pytorch_lightning as pl
 import torch
 from torch.nn import LSTMCell, RNNCell, GRUCell, Dropout, Embedding, Linear, CrossEntropyLoss
-import pytorch_lightning as pl
+from torch.nn.functional import one_hot
 
 
 class CharRNN(pl.LightningModule):
@@ -13,7 +14,7 @@ class CharRNN(pl.LightningModule):
             self.encoder = Embedding(embedding_dim, nr_chars)
         self.cell = constructor(nr_chars, hidden_size, bias=True)
         self.decoder = Linear(hidden_size, nr_chars)
-        self.dropout = torch.nn.Dropout(dropout)
+        self.dropout = Dropout(dropout)
         self.encode = embedding_dim != 0
         self.nr_chars = nr_chars
 
@@ -25,7 +26,7 @@ class CharRNN(pl.LightningModule):
         if self.encode:
             encoded = self.encoder(input.T).transpose(0, 1).contiguous()  # contiguous alligns it in memory
         else:
-            encoded = torch.nn.functional.one_hot(input, num_classes=self.nr_chars).float()
+            encoded = one_hot(input, num_classes=self.nr_chars).float()
         cs = [self.cell(encoded[:, 0])]
         for i in range(1, seq_len):  # skip first element
             cs.append(self.cell(encoded[:, i], cs[-1]))
