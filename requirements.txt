@@ -1,3 +1,5 @@
 torch
 pytorch-lightning
 # for 16 bit precision: apex https://pytorch-lightning.readthedocs.io/en/latest/apex.html
+numpy # only for charrnn_example
+tensorflow # only for to_categorical in charrnn_example

@@ -1,14 +1,26 @@
-import pytorch_lightning as pl
-import torch
+import os
 
-from dataloader import load
+import pytorch_lightning as pl
+
+import dataloader
+from config import *
 from model import CharRNN
 
 torch.autograd.set_detect_anomaly(True)  # shows errors when we messed up
 
-f = ["data/warandpeace.txt", "data/shakespeare.txt", "data/simple_example.txt"]
-(trl, tel, val), nr_chars = load(f[0], batch_size=128, seq_len=128,
-                                 device="cuda" if torch.cuda.is_available() else "cpu", unique=True)
-model = CharRNN(model="lstm", nr_chars=nr_chars, hidden_size=512, embedding_dim=0, layers=2, lr=0.001)
-trainer = pl.Trainer(gpus=int(torch.cuda.is_available()), precision=32)  # , gradient_clip_val=1
-trainer.fit(model, train_dataloader=trl, val_dataloaders=val)
+(trl, tel, val), vocab = dataloader.load(FILE_NAME, batch_size=BATCH_SIZE, seq_len=SEQ_LEN, device=DEVICE, unique=True,
+                                         splits=(0, 95, 99, 100))
+params = {"model_name": "lstm", "hidden_size": HIDDEN_SIZE, "embedding_dim": EMBEDDING_DIM,
+          "n_layers": N_LAYERS, "dropout": DROPOUT, "lr": LR}
+net = CharRNN(vocab_size=len(vocab), **params).to(DEVICE)
+if os.path.exists(CHECKPOINT_NAME):
+    CharRNN.load_from_checkpoint(CHECKPOINT_NAME, vs=len(vocab), **params)
+else:
+    early_stop_callback = pl.callbacks.EarlyStopping(monitor='avg_val_loss', min_delta=0.00, patience=3, mode="max")
+    trainer = pl.Trainer(gpus=int(torch.cuda.is_available()), precision=16, gradient_clip_val=CLIP,
+                         max_epochs=MAX_EPOCHS, progress_bar_refresh_rate=10, early_stop_callback=early_stop_callback)
+    trainer.fit(net, train_dataloader=trl, val_dataloaders=val)
+    trainer.save_checkpoint("net")
+
+for method in "max", "rand", "softrand":
+    print(net.predict("hello", 10, vocab, method=method))
