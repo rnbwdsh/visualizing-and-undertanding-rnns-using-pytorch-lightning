@@ -33,34 +33,14 @@ class LSTM(Module):
 
             # for each layer
             for layer in range(self.num_layers):
-                input_gate = sigmoid(self.Wii_b[layer](input) + self.Whi_b[layer](hx[layer]))
-                forget_gate = sigmoid(self.Wif_b[layer](input) + self.Whf_b[layer](hx[layer]))
-                cell_gate = tanh(self.Wic_b[layer](input) + self.Whc_b[layer](hx[layer]))
-                output_gate = sigmoid(self.Wio_b[layer](input) + self.Who_b[layer](hx[layer]))
+                input_gate = sigmoid(self.Wii_b[layer](input) + self.Whi_b[layer](hx))
+                forget_gate = sigmoid(self.Wif_b[layer](input) + self.Whf_b[layer](hx))
+                cell_gate = tanh(self.Wic_b[layer](input) + self.Whc_b[layer](hx))
+                output_gate = sigmoid(self.Wio_b[layer](input) + self.Who_b[layer](hx))
 
                 # current states
-                cy = forget_gate * cx[layer] + input_gate * cell_gate
-                hy = output_gate * tanh(cy)
-
-                if self.num_layers == 1:
-                    hx = hy.unsqueeze(0)  # (batch_size, hidden_size) -> (1, batch_size, hidden_size)
-                    cx = cy.unsqueeze(0)
-                elif self.num_layers > 1:
-                    # update hx and cx in current layer; avoid in-place operation
-                    if layer == 0:
-                        hx = cat((hy.unsqueeze(0), hx[(layer + 1)::, :, :]), 0)
-                        cx = cat((cy.unsqueeze(0), cx[(layer + 1)::, :, :]), 0)
-                    elif layer == self.num_layers - 1:
-                        hx = cat((hx[0:layer, :, :], hy.unsqueeze(0)), 0)
-                        cx = cat((cx[0:layer, :, :], cy.unsqueeze(0)), 0)
-                    else:
-                        hx = cat((hx[0::layer, :, :], hy.unsqueeze(0), hx[(layer + 1)::, :, :]), 0)
-                        cx = cat((cx[0::layer, :, :], cy.unsqueeze(0), cx[(layer + 1)::, :, :]), 0)
-                else:
-                    raise Exception('Number of layers should be larger than or equal to 1.')
-
-                # upward to upper layer
-                input = hy
+                cx = forget_gate * cx + input_gate * cell_gate
+                input = hx = output_gate * tanh(cx)
 
                 # store four gate values in current layer
                 all_input_gate.append(input_gate)
