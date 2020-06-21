@@ -70,6 +70,7 @@ class CharRNN(pl.LightningModule):
         return decoded
 
     def extract_gates(self, x):
+        self.eval()
         x = self.encoder(x)
         c = self.cell
         hidden = self.hidden_size
@@ -101,13 +102,19 @@ class CharRNN(pl.LightningModule):
                     xt = hx = og * tanh(cx)
                 outputs.append(hx)
                 gates.append([ig, fg, cg, og])
-            outputs = torch.stack(outputs)
-            outputs2, (cx2, hx2) = c(x.transpose(0, 1) if c.batch_first else x)
+
+            outputs = torch.cat(outputs)
+            if c.batch_first:
+                outputs2, (cx2, hx2) = c(x.transpose(0, 1))
+                outputs2 = outputs2.transpose(0, 1)
+            else:
+                outputs2, (cx2, hx2) = c(x)
             print(outputs.sum(), outputs2.sum())
             print(cx.sum(), cx2.sum())
+            assert outputs.shape == outputs2.shape
             assert cx.shape == cx2.shape
             assert hx.shape == hx.shape
-
+        self.train()
         return gates
 
     # pytorch-lightning from here on
