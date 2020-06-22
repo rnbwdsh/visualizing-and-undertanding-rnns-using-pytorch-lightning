@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from tensorflow.keras.utils import to_categorical
 
-from config import *
+from ..config import DEVICE, SEQ_LEN, PREDICT_SEQ_LEN, LR, FILE_NAME, BATCH_SIZE, HIDDEN_SIZE
 
 
 def get_batches(arr, n_seqs_in_a_batch, n_characters):
@@ -37,23 +37,24 @@ class CharLSTM(torch.nn.ModuleList):
 
     def forward(self, x):
         output_seq = torch.empty((self.sequence_len, self.batch_size, self.vocab_size), device=x.device)
-        hc = tuple([torch.zeros(x.shape[1], self.hidden_dim, device=DEVICE) for _ in range(2)])
+        hc = (torch.zeros(x.shape[1], self.hidden_dim, device=DEVICE),
+              torch.zeros(x.shape[1], self.hidden_dim, device=DEVICE))
         for t in range(self.sequence_len):
-            h_1, c_1 = self.lstm_1(x[t], hc)
-            h_2, c_2 = self.lstm_2(h_1, hc)
+            h_1, c_1 = self.lstm_1.forward(x[t], hc)
+            h_2, c_2 = self.lstm_2.forward(h_1, hc)
             output_seq[t] = self.fc(self.dropout(h_2))
         return output_seq.view((self.sequence_len * self.batch_size, -1))
 
     def predict(self, char, top_k=5, seq_len=128):
         self.eval()
-        hc = tuple([torch.zeros(1, self.hidden_dim, device=DEVICE) for _ in range(2)])
+        hc = (torch.zeros(1, self.hidden_dim, device=DEVICE), torch.zeros(1, self.hidden_dim, device=DEVICE))
         seq = np.empty(seq_len + 1)
         seq[0] = char2int[char]
         char = to_categorical(char2int[char], num_classes=self.vocab_size)
         char = torch.from_numpy(char).unsqueeze(0).to(DEVICE)
         for t in range(seq_len):
-            h_1, _ = self.lstm_1(char, hc)
-            h_2, _ = self.lstm_2(h_1, hc)
+            h_1, _ = self.lstm_1.forward(char, hc)
+            h_2, _ = self.lstm_2.forward(h_1, hc)
             h_2 = self.fc(h_2)
             h_2 = h_2.softmax(dim=1)
             p, top_char = h_2.topk(top_k)
@@ -91,6 +92,7 @@ for epoch in range(10):
         loss.backward()
         optimizer.step()
         if i % 10 == 0:
+            val_loss = 0  # to avoid warning
             for val_x, val_y in get_batches(val_data, n_seqs_in_a_batch=BATCH_SIZE, n_characters=SEQ_LEN):
                 val_x = torch.from_numpy(to_categorical(val_x, num_classes=net.vocab_size).transpose([1, 0, 2])).to(
                     DEVICE)
@@ -100,5 +102,5 @@ for epoch in range(10):
                 val_loss = criterion(val_output, val_y)
                 val_losses.append(val_loss.item())
                 samples.append(''.join([int2char[int_] for int_ in net.predict("A", seq_len=PREDICT_SEQ_LEN)]))
-            val_loss = val_loss.item() if "val_loss" in locals() else 0
+            val_loss = val_loss.item()
             print("Epoch: {}, Batch: {}, Train Loss: {:.6f}, Val Loss: {:.6f}".format(epoch, i, loss.item(), val_loss))

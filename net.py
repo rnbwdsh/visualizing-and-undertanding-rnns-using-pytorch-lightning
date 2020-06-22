@@ -1,47 +1,38 @@
 import pytorch_lightning as pl
 import torch
-from torch import sigmoid, tanh
 from torch.nn import *
 from torch.nn.functional import one_hot
 
 import dataloader
-from config import *
-
-
-# from LSTM import LSTM  # to use huangho lstm
+from extractable import LSTMx, RNNx, GRUx
 
 
 class CharRNN(pl.LightningModule):
     # class CharRNN(torch.nn.Module):
     def __init__(self, vocab_size, hidden_size, embedding_dim, model_name, dropout, n_layers, lr):
         super(CharRNN, self).__init__()
-
-        name_cell = {"lstm": LSTM, "rnn": RNN, "gru": GRU}
-        constructor = name_cell[model_name]
-
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.embedding_dim = embedding_dim
         self.model_name = model_name
         self.lr = lr
         self.n_layers = n_layers
-
-        if embedding_dim != 0:
-            self.encoder = Embedding(vocab_size, vocab_size)
-        else:
-            def encoder(x):
-                return one_hot(x, num_classes=self.vocab_size).float()
-
-            self.encoder = encoder
-        self.cell = constructor(vocab_size, hidden_size, num_layers=n_layers, batch_first=True)
         self.decoder = Linear(hidden_size, vocab_size)  # * 2 if constructor == LSTMCell else 1
         self.dropout = Dropout(dropout)
         self.do_encode = embedding_dim != 0
 
+        name_cell = {"lstm": LSTMx, "rnn": RNNx, "gru": GRUx}
+        constructor = name_cell[model_name]
+        self.recurrent = constructor(vocab_size, hidden_size, num_layers=n_layers, batch_first=True)
+        if embedding_dim != 0:
+            self.encoder = Embedding(vocab_size, vocab_size)
+        else:
+            self.encoder = lambda x: one_hot(x, num_classes=self.vocab_size).float()
+
     def forward(self, x):
         seq_len, batch_size = x.shape
         x = self.encoder(x)
-        x = self.cell(x)
+        x = self.recurrent(x)
         x = self.dropout(x[0])
         x = self.decoder(x)
         x = x.view(batch_size * seq_len, -1)
@@ -70,52 +61,8 @@ class CharRNN(pl.LightningModule):
         return decoded
 
     def extract_gates(self, x):
-        self.eval()
         x = self.encoder(x)
-        c = self.cell
-        hidden = self.hidden_size
-        gates, outputs = [], []
-        if type(c) == torch.nn.LSTM:
-            if c.batch_first:
-                x = x.transpose(0, 1)
-            # init 0 for start
-            hx, cx = [torch.zeros(self.n_layers, x.shape[1], self.hidden_size).to(x.device) for _ in range(2)]
-            for xt in x:
-                ig, fg, cg, og = 0, 0, 0, 0  # to avoid reference-before-assignment-warning
-                for weight_input, weight_hidden, bias_input, bias_hidden in c.all_weights:  # iterate over all layers
-                    # documentation says every 4*hidden vector is Wi = W_ii|W_if|W_ic|W_io
-                    wii, wif, wic, wio = weight_input.view(4, hidden, -1)
-                    whi, whf, whc, who = weight_hidden.view(4, hidden, -1)
-                    bii, bif, bic, bio = bias_input.view(4, hidden)
-                    bhi, bhf, bhc, bho = bias_hidden.view(4, hidden)
-
-                    ig = (xt @ wii.T + bii) + (cx @ whi.T + bhi)
-                    fg = (xt @ wif.T + bif) + (cx @ whf.T + bhf)
-                    cg = (xt @ wic.T + bic) + (cx @ whc.T + bhc)
-                    og = (xt @ wio.T + bio) + (cx @ who.T + bho)
-
-                    # tmp = (xt @ weight_input.T + bias_input) + (cx @ weight_hidden.T + bias_hidden)
-                    # ig, fg, cg, og = [tmp[:, i:i+hidden] for i in range(0, hidden*4, hidden)]
-                    ig, fg, cg, og = sigmoid(ig), sigmoid(fg), tanh(cg), sigmoid(og)
-
-                    cx = fg * cx + ig * cg
-                    xt = hx = og * tanh(cx)
-                outputs.append(hx)
-                gates.append([ig, fg, cg, og])
-
-            outputs = torch.cat(outputs)
-            if c.batch_first:
-                outputs2, (cx2, hx2) = c(x.transpose(0, 1))
-                outputs2 = outputs2.transpose(0, 1)
-            else:
-                outputs2, (cx2, hx2) = c(x)
-            print(outputs.sum(), outputs2.sum())
-            print(cx.sum(), cx2.sum())
-            assert outputs.shape == outputs2.shape
-            assert cx.shape == cx2.shape
-            assert hx.shape == hx.shape
-        self.train()
-        return gates
+        return self.recurrent.forward_extract_verify(x)[2]
 
     # pytorch-lightning from here on
     def configure_optimizers(self):
@@ -136,7 +83,7 @@ class CharRNN(pl.LightningModule):
 
     def validation_step(self, batch, batch_nb):
         loss, acc = self.step(batch)
-        self.extract_gates(batch[0], )
+        self.extract_gates(batch[0])
         return {'val_loss': loss, "val_acc": acc}
 
     def validation_end(self, outputs):
