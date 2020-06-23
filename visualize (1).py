@@ -37,7 +37,7 @@ def visgate(input_gate, forget_gate, output_gate):
     plot_gate((input_left_s, input_right_s), (forget_left_s, forget_right_s), (output_left_s, output_right_s))
 
 
-def viscell(cell,x,vis_dir,max_length=10000):
+def viscell(cell, vis_dir, max_length=10000):
     # write seq and cell into a json file for visualization
     seq = []
     seq.extend(x[:max_length//BATCH_SIZE])
@@ -52,7 +52,7 @@ def viscell(cell,x,vis_dir,max_length=10000):
     total_char = len(cell)
     for i in range(total_char):  # for each character (time step)
         for j in range(N_LAYERS):  # for each layer
-            char_cell['cell_layer_' + str(j + 1)].append(cell[i][j].tolist())
+            char_cell['cell_layer_' + str(j + 1)].append(cell[i][j])#error here regarding serilization
 
     with open(path.join(vis_dir, 'char_cell.json'), 'w') as json_file:
         json.dump(char_cell, json_file)
@@ -89,7 +89,7 @@ for x, y in tel:
             reset_gates.append(reset_gate)
             update_gates.append(update_gate)
 if MODEL_NAME == 'lstm':
-    visgate(input_gates[0], forget_gates[0], output_gates[0])
-    viscell(cell_states,dataloader.decode(sequ,vocab),'output')
+    #visgate(input_gates[0], forget_gates[0], output_gates[0])
+    viscell(cell_states,dataloader.decode(torch.cat(sequ),vocab),'output')
 elif MODEL_NAME == 'gru':
     visgate(np.array(reset_gates), np.array(update_gates))
