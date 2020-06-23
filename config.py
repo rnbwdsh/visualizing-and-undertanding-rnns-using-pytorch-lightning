@@ -1,16 +1,21 @@
-_FILE_NAMES = ["data/warandpeace.txt", "data/shakespeare.txt", "data/simple_example.txt"]
+import torch
+
+# linux = https://cs.stanford.edu/people/karpathy/char-rnn/
+_FILE_NAMES = ["warandpeace", "shakespeare", "linux"]
 FILE_NAME = _FILE_NAMES[0]
-DEVICE = "cpu"  # "cuda" if torch.cuda.is_available() else "cpu"
-N_LAYERS = 2
-SEQ_LEN = 3
+FILE_PATH = f"data/{FILE_NAME}.txt"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+N_LAYERS = 1
+SEQ_LEN = 70
+HIDDEN_SIZE = 128
+BATCH_SIZE = 128
 PREDICT_SEQ_LEN = SEQ_LEN
-HIDDEN_SIZE = 1
-BATCH_SIZE = 1
 LR = 0.01
 CLIP = 5
 DROPOUT = 0.0
-MAX_EPOCHS = 1
+MAX_EPOCHS = 100
 CHECKPOINT_NAME = "net"
 EMBEDDING_DIM = 0  # 0 = one-hot encoding
-MODEL_NAME = "gru"
-PRECISION = 16 if DEVICE == "cuda" else 32
+MODEL_NAME = "lstm"
+PRECISION = 32  # 16 if DEVICE == "cuda" else 32
+SPLITS = (0, 90, 95, 100)
