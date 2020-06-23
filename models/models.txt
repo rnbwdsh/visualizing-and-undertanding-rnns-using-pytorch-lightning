@@ -1,0 +1,2 @@
+All: http://öä.eu/weights/w.7z
+Single: http://öä.eu/weights/
