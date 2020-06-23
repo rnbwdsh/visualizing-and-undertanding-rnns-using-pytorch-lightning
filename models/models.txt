@@ -1,2 +1,2 @@
-All: http://öä.eu/models/w.7z
-Single: http://öä.eu/models/
+All: http://öä.eu/weights/w.7z
+Single: http://öä.eu/weights/
