@@ -13,12 +13,12 @@ from config import *
 def get_saturated(gate, left_thresh, right_thresh):
     left_s = []  # length = num_layers
     right_s = []
-    total_seq_length = SEQ_LEN # total_seq_length = total character number
-    for i in range(gate.shape[0]):  # for each layer
-        left_tmp = gate[i] < left_thresh  # gate[i]: (total_seq_length, hidden_size)
-        right_tmp = gate[i] > right_thresh
-        left_tmp = torch.sum(left_tmp, dim =0) / total_seq_length  # boradcasting
-        right_tmp = torch.sum(right_tmp, dim=0) / total_seq_length
+    total_seq_length = 70 # total_seq_length = total character number
+    for i in range(N_LAYERS):  # for each layer
+        left_tmp = gate[i][0] < left_thresh  # gate[i]: (total_seq_length, hidden_size)
+        right_tmp = gate[i][0] > right_thresh
+        left_tmp = np.sum(left_tmp.numpy(),0) / total_seq_length  # boradcasting
+        right_tmp = np.sum(right_tmp.numpy(),0) / total_seq_length
         # add to a list
         left_s.append(left_tmp)
         right_s.append(right_tmp)
@@ -37,10 +37,10 @@ def visgate(input_gate, forget_gate, output_gate):
     plot_gate((input_left_s, input_right_s), (forget_left_s, forget_right_s), (output_left_s, output_right_s))
 
 
-def viscell(cell, vis_dir, max_length=10000):
+def viscell(cell, x, vis_dir):
     # write seq and cell into a json file for visualization
     seq = []
-    seq.extend(x[:max_length//BATCH_SIZE])
+    seq.extend(x)
     char_cell = {}
     char_cell['cell_size'] = HIDDEN_SIZE
     char_cell['seq'] = ''.join(seq)
@@ -74,22 +74,34 @@ elif MODEL_NAME == 'gru':
     reset_gates, update_gates = [], []
 else:
     raise TypeError('This model does not have gates')
-for x, y in tel:
-    for i in range(N_LAYERS):
-        if MODEL_NAME == 'lstm':
-            input_gate, forget_gate, cell_gate, output_gate = net.extract_gates(x)[2][i]
-            cell_states.append(net.extract_gates(x)[1])
-            input_gates.append(input_gate)
-            forget_gates.append(forget_gate)
-            cell_gates.append(cell_gates)
-            output_gates.append(output_gate)
-            sequ.extend(x)
-        else:
-            reset_gate, update_gate = net.extract_gates(x)[2]
-            reset_gates.append(reset_gate)
-            update_gates.append(update_gate)
+for i in range(N_LAYERS):
+    c_states,i_gates, f_gates, c_gates, o_gates=[], [], [], [], []
+    u_gates,r_gates = [],[]
+    for x, y in tel:
+            if MODEL_NAME == 'lstm':
+                input_gate, forget_gate, cell_gate, output_gate = net.extract_gates(x)[2][i]
+                c_states.extend([p.data.cpu().squeeze().numpy().tolist()] for p in net.extract_gates(x)[1][i])
+                i_gates.append(input_gate)
+                f_gates.append(forget_gate)
+                c_gates.append(cell_gates)
+                o_gates.append(output_gate)
+                sequ.extend(x)
+            else:
+                reset_gate, update_gate = net.extract_gates(x)[2]
+                r_gates.append(reset_gate)
+                u_gates.append(update_gate)
+    if MODEL_NAME == 'lstm':
+        cell_states.append(c_states)
+        input_gates.append(i_gates)
+        forget_gates.append(f_gates)
+        cell_gates.append(c_gates)
+        output_gates.append(o_gates)
+    else:
+        reset_gates.append(r_gates)
+        update_gates.apped(u_gates)
+
 if MODEL_NAME == 'lstm':
-    #visgate(input_gates[0], forget_gates[0], output_gates[0])
-    viscell(cell_states,dataloader.decode(torch.cat(sequ),vocab),'output')
+    visgate(np.array(input_gates), np.array(forget_gates), np.array(output_gates))
+    viscell(np.array(cell_states).tolist(), dataloader.decode(torch.cat(sequ),vocab),'output')
 elif MODEL_NAME == 'gru':
     visgate(np.array(reset_gates), np.array(update_gates))
