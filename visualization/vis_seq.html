@@ -58,7 +58,7 @@
     if(showmore) {
       endix = seq.length;
     } else {
-      endix = Math.min(4000, seq.length);
+      endix = Math.min(4000, seq.length, cell.length);
     }
 
     div.html('<br>'); // flush
@@ -142,21 +142,22 @@
   </script>
   </head>
 
-  <body onload="start();">
-    <div id="wrap">
-      <button onclick = "NextEntry()" style = "width:110px; height:30px;">Next Entry</button>
-      <button onclick = "PrevEntry()" style = "width:110px; height:30px;">Previous Entry</button>
-      <button onclick = "NextLayer()" style = "width:110px; height:30px;">Next Layer</button>
-      <button onclick = "PrevLayer()" style = "width:110px; height:30px;">Previous Layer</button>
-      <button onclick = "ShowMore()" style = "width:110px; height:30px;">Show More</button>
-      <button onclick = "showLess()" style = "width:110px; height:30px;">Show Less</button>
-      
-      &nbsp;&nbsp;&nbsp;Entry/Cell_Size: 
-      <span id = "cell-elem-idx" style="font-weight:bold"></span>/<span span id = "cell-size"></span>&nbsp;&nbsp;Layer:<span id = "layer"></span>
-      
-      <div id = "vis">
-      </div>
-    </div>
-  </body>
+ <body onload="start();">
+ <a href="https://github.com/huanghao-code/VisRNN_ICLR_2016_Text/blob/master/output/vis_seq.html">Based on huanghao</a>
+ <div id="wrap">
+     <button onclick="NextEntry()" style="width:150px; height:30px;">Next Entry</button>
+     <button onclick="PrevEntry()" style="width:150px; height:30px;">Previous Entry</button>
+     <button onclick="NextLayer()" style="width:150px; height:30px;">Next Layer</button>
+     <button onclick="PrevLayer()" style="width:150px; height:30px;">Previous Layer</button>
+     <button onclick="ShowMore()" style="width:150px; height:30px;">Show More</button>
+     <button onclick="showLess()" style="width:150px; height:30px;">Show Less</button>
 
+     &nbsp;&nbsp;&nbsp;Entry/Cell_Size:
+     <span id="cell-elem-idx" style="font-weight:bold"></span>/<span id="cell-size" span></span>&nbsp;&nbsp;Layer:<span
+         id="layer"></span>
+
+     <div id="vis">
+     </div>
+ </div>
+ </body>
 </html>

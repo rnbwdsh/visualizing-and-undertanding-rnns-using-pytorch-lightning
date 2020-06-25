@@ -1,48 +1,12 @@
-import pytorch_lightning as pl
+import numpy as np
 import torch
 from torch.nn import Linear, Dropout, Embedding, Module
 
 import dataloader
 from config import DEVICE
-from extractable import LSTMx, RNNx, GRUx
-
-
-class Lightning(pl.LightningModule):
-    def __init__(self, net, lr):
-        super(Lightning, self).__init__()
-        self.net = net
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.95)
-
-    def forward(self, x):
-        return self.net.forward(x)
-
-    def configure_optimizers(self):
-        return [self.optimizer], [self.scheduler]
-
-    def step(self, batch):
-        x, y = batch
-        out = self.forward(x)  # train on everything except last
-        loss = torch.nn.functional.cross_entropy(out, y.flatten())
-        acc = float(out.argmax(1).eq(y.flatten()).sum()) / len(out)
-        return loss, acc
-
-    def training_step(self, batch, batch_idx):
-        loss, acc = self.step(batch)
-        return {'loss': loss, 'progress_bar': {'acc': acc}}
-
-    def validation_step(self, batch, batch_nb):
-        loss, acc = self.step(batch)
-        return {'val_loss': loss, "val_acc": acc}
-
-    def test_step(self, batch, batch_nb):
-        loss, acc = self.step(batch)
-        return {'test_loss': loss, "test_acc": acc}
-
-    def validation_end(self, outputs):
-        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        avg_acc = sum([x['val_acc'] for x in outputs]) / len(outputs)
-        return {'val_loss': avg_loss, 'val_acc': avg_acc}
+from .grux import GRUx
+from .lstmx import LSTMx
+from .rnnx import RNNx
 
 
 class CharRNN(Module):
@@ -78,8 +42,7 @@ class CharRNN(Module):
         x = self.recurrent(x)
         x = self.dropout(x[0])
         x = self.decoder(x)
-        x = x.view(batch_size * seq_len, -1)
-        return x
+        return x.view(batch_size * seq_len, -1)
 
     def predict(self, x, seq_len, vocab, method="rand"):
         self.eval()
@@ -91,7 +54,6 @@ class CharRNN(Module):
             if method == "max":
                 out = out.argmax()
             elif method == "rand":
-                out ** 2
                 out = (out / out.sum()).cumsum(dim=0)
             elif method == "softrand":
                 out = out.softmax(dim=0).cumsum(dim=0)
@@ -107,18 +69,31 @@ class CharRNN(Module):
         x = self.encode(x)
         return self.recurrent.forward_extract(x)[2]
 
+    def extract_from_loader(self, loader):
+        epochs = []
+        for x, _ in loader:  # run training loop
+            x = self.extract_gates(x)
+            # 1. reshape so batch_dim is first
+            x = np.array(x).transpose((0, 3, 1, 2, 4))
+            # 2. concatenate sequences along batch dim
+            x = np.concatenate(x)
+            # 3. concatenate along epoch dimension
+            epochs.append(x)
+        # 4. set gate_id as dimension 0 -> unbox to 4 variables with [layer, textpos, gate]
+        return np.concatenate(epochs).transpose((2, 1, 0, 3))
+
     def name(self):
         return f"{self.model_name}-{self.n_layers}-{self.hidden_size}"
 
     def save_to_file(self):
+        self._forward_hooks.clear()  # must be empty to be pickle-able
         with open(f"models/{self.name()}.pkl", "wb") as f:
             torch.save(self, f)
 
     @staticmethod
     def load_from_file(model_name, nr_layers, hidden_size):
         with open(f"models/{model_name}-{nr_layers}-{hidden_size}.pkl", "rb") as f:
-            net_ = torch.load(f)
-            net = CharRNN(net_.vocab_size, net_.hidden_size, net_.embedding_dim, net_.model_name, net_.dropout.p,
-                          net_.n_layers, DEVICE)
-            net.load_state_dict(net_.state_dict())
+            n = torch.load(f)
+            net = CharRNN(n.vocab_size, n.hidden_size, n.embedding_dim, n.model_name, n.dropout.p, n.n_layers, DEVICE)
+            net.load_state_dict(n.state_dict())
             return net
