@@ -1,2 +1,2 @@
-All: http://öä.eu/weights/w.7z
+All: http://öä.eu/weights.zip
 Single: http://öä.eu/weights/

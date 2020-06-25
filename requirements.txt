@@ -4,3 +4,4 @@ pytorch-lightning
 numpy # only for charrnn_example
 tensorflow # only for to_categorical in charrnn_example
 matplotlib-venn
+matplotlib

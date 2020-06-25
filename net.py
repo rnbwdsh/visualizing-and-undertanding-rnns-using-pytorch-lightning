@@ -63,13 +63,17 @@ class CharRNN(Module):
         self.recurrent = constructor(vocab_size, hidden_size, num_layers=n_layers, batch_first=True)
         if embedding_dim != 0:
             self.encoder = Embedding(vocab_size, vocab_size)
-        else:
-            self.encoder = lambda x: torch.nn.functional.one_hot(x, num_classes=self.vocab_size).float()
         self.to(self.device)
+
+    def encode(self, x):
+        if self.embedding_dim == 0:
+            return torch.nn.functional.one_hot(x, num_classes=self.vocab_size).float()
+        else:
+            return self.encoder(x)
 
     def forward(self, x):
         seq_len, batch_size = x.shape
-        x = self.encoder(x)
+        x = self.encode(x)
         x = self.recurrent(x)
         x = self.dropout(x[0])
         x = self.decoder(x)
@@ -99,5 +103,17 @@ class CharRNN(Module):
         return decoded
 
     def extract_gates(self, x):
-        x = self.encoder(x)
+        x = self.encode(x)
         return self.recurrent.forward_extract(x)[2]
+
+    def name(self):
+        return f"{self.model_name}-{self.n_layers}-{self.hidden_size}"
+
+    def save_to_file(self):
+        with open(f"models/{self.name()}.pkl", "wb") as f:
+            torch.save(self, f)
+
+    @staticmethod
+    def load_from_file(model_name, nr_layers, hidden_size):
+        with open(f"models/{model_name}-{nr_layers}-{hidden_size}.pkl", "rb") as f:
+            return torch.load(f)

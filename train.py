@@ -6,7 +6,7 @@ from net import CharRNN, Lightning
 
 (trl, tel, val), vocab = dataloader.load(FILE_PATH, DEVICE, SPLITS, BATCH_SIZE, SEQ_LEN, unique=True)
 
-for MODEL_NAME in ["gru", "lstm"]:
+for MODEL_NAME in ["rnn", "gru", "lstm"]:
     for N_LAYERS in [1, 2, 3, 4]:
         for HIDDEN_SIZE in [32, 64, 128, 256, 512, 1024]:
             net = CharRNN(len(vocab), HIDDEN_SIZE, EMBEDDING_DIM, MODEL_NAME, DROPOUT, N_LAYERS, DEVICE)
