@@ -1,6 +1,7 @@
-from extractable import Extractor
 from torch import tanh, cat
 from torch.nn import RNN
+
+from .extractable import Extractor
 
 
 class RNNx(RNN, Extractor):

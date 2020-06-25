@@ -1,7 +1,7 @@
 import torch
 
 # linux = https://cs.stanford.edu/people/karpathy/char-rnn/
-_FILE_NAMES = ["warandpeace", "shakespeare", "linux"]
+_FILE_NAMES = ["warandpeace", "shakespeare"]
 FILE_NAME = _FILE_NAMES[0]
 FILE_PATH = f"data/{FILE_NAME}.txt"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -14,7 +14,6 @@ LR = 0.01
 CLIP = 5
 DROPOUT = 0.0
 MAX_EPOCHS = 100
-CHECKPOINT_NAME = "net"
 EMBEDDING_DIM = 0  # 0 = one-hot encoding
 MODEL_NAME = "lstm"
 PRECISION = 32  # 16 if DEVICE == "cuda" else 32

@@ -47,6 +47,6 @@ def visualize_gate(*gates):
 
 def visualize_cell(cell, x, vis_dir="visualization"):
     char_cell = {'cell_size': HIDDEN_SIZE, 'seq': ''.join(x)}
-    char_cell.update({f"cell_layer_{layer + 1}": cell[layer][0].tolist() for layer in range(len(cell))})
+    char_cell.update({f"cell_layer_{layer + 1}": cell[layer].tolist() for layer in range(len(cell))})
     with open(path.join(vis_dir, 'char_cell.json'), 'w') as json_file:
         json.dump(char_cell, json_file)
