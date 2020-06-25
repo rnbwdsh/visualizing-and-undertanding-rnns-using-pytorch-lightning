@@ -66,7 +66,7 @@ class GRUx(GRU, Extractor):
             n = tanh(xt @ win.T + bin + r * (hidden[t] @ whn.T + bhn))
             xt = (1 - z) * n + z * hidden[t]
             hidden.append(xt)
-            gates.append([r, z])
+            gates.append([r.tolist(), z.tolist()])
         return cat(hidden[self.num_layers:]), gates
 
 
@@ -90,7 +90,8 @@ class LSTMx(LSTM, Extractor):
             cy = forget_gate * cx[i] + input_gate * cell_gate
             xt = output_gate * tanh(cy)
 
-            gates.append([input_gate, forget_gate, cell_gate, output_gate])
+            gates.append([g.squeeze(dim=0).tolist() for g in
+                          [input_gate, forget_gate, cell_gate, output_gate, cy]])
             xto.append(xt)
             yto.append(cy)
         return (cat(xto), cat(yto)), gates

@@ -3,6 +3,7 @@ import torch
 from torch.nn import Linear, Dropout, Embedding, Module
 
 import dataloader
+from config import DEVICE
 from extractable import LSTMx, RNNx, GRUx
 
 
@@ -116,4 +117,8 @@ class CharRNN(Module):
     @staticmethod
     def load_from_file(model_name, nr_layers, hidden_size):
         with open(f"models/{model_name}-{nr_layers}-{hidden_size}.pkl", "rb") as f:
-            return torch.load(f)
+            net_ = torch.load(f)
+            net = CharRNN(net_.vocab_size, net_.hidden_size, net_.embedding_dim, net_.model_name, net_.dropout.p,
+                          net_.n_layers, DEVICE)
+            net.load_state_dict(net_.state_dict())
+            return net
